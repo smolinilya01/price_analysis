@@ -11,6 +11,8 @@ PATH_METAL = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Спра�
 PATH_METIZ = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_метизов_лэп (ANSITXT).txt"
 PATH_NEW_INPUTS_METAL = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Закупки_за_период_металл (ANSITXT).txt"
 PATH_NEW_INPUTS_METIZ = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Закупки_за_период_метизы (ANSITXT).txt"
+PATH_NEW_INPUTS_ELEKTROD = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Закупки_за_период_сварочная_электроды (ANSITXT).txt"
+PATH_NEW_INPUTS_CGC = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Закупки_за_период_мат_цгц (ANSITXT).txt"
 
 
 def prepare_data() -> None:
@@ -24,8 +26,11 @@ def prepare_data() -> None:
 
     new_inputs_metal = prepare_inputs(PATH_NEW_INPUTS_METAL)
     new_inputs_metiz = prepare_inputs(PATH_NEW_INPUTS_METIZ)
+    new_inputs_electrod = prepare_inputs(PATH_NEW_INPUTS_ELEKTROD)
+    new_inputs_zinc = prepare_inputs(PATH_NEW_INPUTS_CGC)
     new_inputs = concat(
-        [new_inputs_metal, new_inputs_metiz],
+        [new_inputs_metal, new_inputs_metiz,
+         new_inputs_electrod, new_inputs_zinc],
         sort=True
     )
 
@@ -54,10 +59,21 @@ def prepare_dicts() -> None:
     Подготовка справочников, котоые ьудут подгружены макросом."""
     metal = dict_nomenclature(path=PATH_METAL, kind=1)
     metiz = dict_nomenclature(path=PATH_METIZ, kind=2)
+    new_dict_elekctrod = prepare_dicts_elektrod()
+    new_dict_zinc = prepare_dicts_zinc()
+
     new_dict = concat(
-        [metal, metiz],
+        [metal,
+         metiz,
+         new_dict_elekctrod,
+         new_dict_zinc],
         sort=True
     )
+    new_dict = new_dict[[
+        'name', 'level_1',
+        'level_2', 'level_3',
+        'Сортамент'
+    ]]
 
     old_dict_levels = read_excel(r'support_data/data/dict_levels.xlsx')
     new_dict_levels: DataFrame = concat(
@@ -69,8 +85,14 @@ def prepare_dicts() -> None:
 
     old_dict_short_name = read_excel(r'support_data/data/dict_short_names.xlsx')
     new_dict_short_name: DataFrame = concat(
-        [old_dict_short_name, new_dict.loc[:, ['name', 'Сортамент']].rename(columns={
-            'name': 'full_name', 'Сортамент': 'short_name'})],
+        [old_dict_short_name,
+         new_dict.loc[:, ['name', 'Сортамент']].
+             rename(columns={'name': 'full_name', 'Сортамент': 'short_name'}),
+         new_dict_elekctrod.loc[:, ['name', 'Сортамент']].
+             rename(columns={'name': 'full_name', 'Сортамент': 'short_name'}),
+         new_dict_zinc.loc[:, ['name', 'Сортамент']].
+             rename(columns={'name': 'full_name', 'Сортамент': 'short_name'}),
+         ],
         sort=True
     )
     new_dict_short_name.to_excel(r'support_data/dumps/new_dict_short_names.xlsx', index=False)
@@ -78,6 +100,7 @@ def prepare_dicts() -> None:
 
 def dict_nomenclature(path: str, kind: int) -> DataFrame:
     """Load nomenclature dict.
+    Загрузка спрвочника по металлу и метизам
 
     :param path: file path
     :param kind: 1 - metal, 2 - metiz
@@ -167,6 +190,7 @@ def create_sortam(x: Series) -> str:
 def prepare_inputs(path: str) -> DataFrame:
     """Prepare input materials data
     Подготавливает данные о поступлениях материалов
+
     :param path: file path
     """
     data = read_csv(
@@ -192,6 +216,9 @@ def prepare_inputs(path: str) -> DataFrame:
         instr=1, space=1, comma=1, numeric=1
     )
     data = data[(data['Всего'] > 0) & (data['Ссылка'] != 'Итого')]
+
+    if path == PATH_NEW_INPUTS_CGC:  # если цинк, то только 2 номенклатуры
+        data = data[data['Номенклатура'].isin(['Цинк ЦВ', 'Цинк ЦВО'])]
 
     return data
 
@@ -227,3 +254,55 @@ def del_space(x: str) -> str:
 def replace_comma(x: str) -> str:
     """Меняет запятую на точку"""
     return x.replace(',', '.')
+
+
+def prepare_dicts_elektrod() -> DataFrame:
+    """Prepare part of new dict_levels.xlsx with elecktrod data"""
+    data = read_csv(
+        PATH_NEW_INPUTS_ELEKTROD,
+        sep='\t',
+        encoding='ansi'
+    )
+
+    data['level_1'] = 'Прочие материалы'
+    data['level_2'] = 'Проволка сварочная, электроды'
+    data['level_3'] = 'Прочие'
+    data['Сортамент'] = 'Прочие'
+
+    data = data\
+        [data['Документ'] != 'Итого'].\
+        rename(columns={'Номенклатура': 'name'})
+
+    data = data[[
+        'name', 'level_1',
+        'level_2', 'level_3',
+        'Сортамент'
+    ]].drop_duplicates()
+
+    return data
+
+
+def prepare_dicts_zinc() -> DataFrame:
+    """Prepare part of new dict_levels.xlsx with zinc data"""
+    data = read_csv(
+        PATH_NEW_INPUTS_CGC,
+        sep='\t',
+        encoding='ansi'
+    )
+
+    data['level_1'] = 'Прочие материалы'
+    data['level_2'] = 'Цинк'
+    data['level_3'] = 'Прочие'
+    data['Сортамент'] = 'Прочие'
+
+    data = data\
+        [(data['Документ'] != 'Итого') & (data['Номенклатура'].isin(['Цинк ЦВ', 'Цинк ЦВО']))].\
+        rename(columns={'Номенклатура': 'name'})
+
+    data = data[[
+        'name', 'level_1',
+        'level_2', 'level_3',
+        'Сортамент'
+    ]].drop_duplicates()
+
+    return data
