@@ -8,7 +8,7 @@ from pandas import (
     DataFrame, Series, read_csv, read_excel, concat
 )
 PATH_METAL = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_металла (ANSITXT).txt"
-PATH_METIZ = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_метизов_лэп (ANSITXT).txt"
+PATH_METIZ = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_только_метизов (ANSITXT).txt"
 PATH_NEW_INPUTS_METAL = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Закупки_за_период_металл (ANSITXT).txt"
 PATH_NEW_INPUTS_METIZ = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Закупки_за_период_метизы (ANSITXT).txt"
 PATH_NEW_INPUTS_ELEKTROD = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Закупки_за_период_сварочная_электроды (ANSITXT).txt"
